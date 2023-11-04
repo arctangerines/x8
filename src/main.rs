@@ -54,10 +54,13 @@ mod chip8
         pub stack: [u16; 16],
         pub delaytimer: u8,
         pub soundtimer: u8,
+        /// 16 bit opcode
+        pub opcode: u16,
     }
 
     enum MemLocations
     {
+        FontSet = 0x050,
         Rom = 0x200,
         RomEnd = 0xFFF,
     }
@@ -82,24 +85,68 @@ mod chip8
         0xF0, 0x80, 0xF0, 0x80, 0xF0, // E
         0xF0, 0x80, 0xF0, 0x80, 0x80, // F
     ];
+    impl Default for Chip8
+    {
+        fn default() -> Self { Chip8::new() }
+    }
+
     impl Chip8
     {
-        fn open(
+        /// Constructor :)
+        pub fn new() -> Self
+        {
+            let mut c8 = Chip8 {
+                registers: [0x0; 16],
+                memory: [0x0; 4096],
+                display: [0x0; 64 * 32],
+                pc: MemLocations::Rom as u16,
+                index: 0x0,
+                stack: [0x0; 16],
+                delaytimer: 0x0,
+                soundtimer: 0x0,
+            };
+            let fsstart = MemLocations::FontSet as usize;
+            for i in 0..FONTSET_SIZE
+            {
+                c8.memory[fsstart + i] = FONTSET[i];
+            }
+            c8
+        }
+        pub fn open(
             &mut self,
             path: &str,
         )
         {
-            // TODO: read it into self.memory and change that expect to something
-            // thats more #elegant
-            let rom = std::fs::read(path).expect("Couldnt open rom.");
-            print!("{:x?}", rom);
+            let rom = std::fs::read(path).expect("Couldn't open file.");
+            let romstart = MemLocations::Rom as usize;
+            println!("Rom memory:");
+            println!("{:x?}", rom);
+
+            for i in 0..rom.len()
+            {
+                self.memory[romstart + i] = rom[i];
+            }
+            println!("Chip8 memory:");
+            println!("{:x?}", self.memory);
         }
 
         // TODO: Implement the cycle function
         // - Cycle -> a cycle of the cpu lolz
-        fn cycle(&mut self)
+        pub fn cycle(&mut self)
         {
             println!("{}", self.memory[self.pc as usize]);
+            // We need to get the first 8 bits then the last 8
+            // 4096 bytes :)
+            // instructions are 16 bits
+            // so we get the first 8 bits, move them to the left
+            // then we get the last 8 (by adding 1 to pc) and OR | them
+            //  pc      pc+1
+            // [a 2] | [2 a]
+            // op = [a 2 2 a]
+            self.opcode = ((self.memory[self.pc as usize] as u16) << 8)
+                | (self.memory[(self.pc + 1) as usize] as u16);
+            println!("op: {:#06x}", self.opcode);
+
             // Add 2 because the 16 bit instructions are handled in sets of 8 bit
             // and memory is an array of 8 bit values
             self.pc += 2;
@@ -114,47 +161,29 @@ mod chip8
         // - DXYN (display function / draww)
         // The reason for wanting to implement these first is that
         // we can use the IBM test rom :)
-        fn op_00e0(&mut self)
+        pub fn op_00e0(&mut self)
         {
             println!("Hello 00e0");
         }
-        fn op_1nnn(&mut self)
+        pub fn op_1nnn(&mut self)
         {
             println!("Hello 1nnn");
         }
-        fn op_6xnn(&mut self)
+        pub fn op_6xnn(&mut self)
         {
             println!("Hello 6xnn");
         }
-        fn op_7xnn(&mut self)
+        pub fn op_7xnn(&mut self)
         {
             println!("Hello 7xnn");
         }
-        fn op_annn(&mut self)
+        pub fn op_annn(&mut self)
         {
             println!("Hello annn");
         }
-        fn op_dxyn(&mut self)
+        pub fn op_dxyn(&mut self)
         {
             println!("Hello dxyn");
-        }
-    }
-
-    impl Default for Chip8
-    {
-        fn default() -> Self
-        {
-            let mut c8 = Chip8 {
-                registers: [0x0; 16],
-                memory: [0x0; 4096],
-                display: [0x0; 64 * 32],
-                pc: MemLocations::Rom as u16,
-                index: 0x0,
-                stack: [0x0; 16],
-                delaytimer: 0x0,
-                soundtimer: 0x0,
-            };
-            c8
         }
     }
 }
@@ -173,20 +202,23 @@ struct CanvasData
 impl CanvasData
 {
     /// Construct a new Canvas Data
-    fn new(
+    pub fn new(
         w: u32,
         h: u32,
         sf: u8,
     ) -> CanvasData
     {
-        let cd = CanvasData {
+        CanvasData {
             width: w,
             height: h,
             scalefactor: sf,
             pixelvec: vec![0; (w * h) as usize],
-        };
-        cd
+        }
     }
+}
+impl Default for CanvasData
+{
+    fn default() -> Self { CanvasData::new(0, 0, 0) }
 }
 /// ### Draw function (dxyn)
 /// In its final form it should be able to just deal with the opcode
@@ -341,8 +373,7 @@ fn main() -> Result<(), String>
         .build()
         .map_err(|e| e.to_string())?;
 
-    let mut srfctx =
-        window.into_canvas().build().map_err(|e| e.to_string())?;
+    let mut srfctx = window.into_canvas().build().map_err(|e| e.to_string())?;
 
     let mut event_pump = sdlctx.event_pump()?;
 
@@ -379,6 +410,10 @@ fn main() -> Result<(), String>
     }
 
     draww(&srfctx, 103, 56, &FAKESET[0..6], pxl_arr.as_mut_slice());
+    let mut c8 = chip8::Chip8::new();
+    c8.open("./rom/IBM Logo.ch8");
+
+    c8.cycle();
 
     Ok(())
 }
