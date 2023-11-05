@@ -99,11 +99,13 @@ mod chip8
                 registers: [0x0; 16],
                 memory: [0x0; 4096],
                 display: [0x0; 64 * 32],
+                video: CanvasData::new(24), /* REVIEW: Should this new take in the scale factor as a parameter? */
                 pc: MemLocations::Rom as u16,
                 index: 0x0,
                 stack: [0x0; 16],
                 delaytimer: 0x0,
                 soundtimer: 0x0,
+                opcode: 0x0,
             };
             let fsstart = MemLocations::FontSet as usize;
             for i in 0..FONTSET_SIZE
@@ -165,9 +167,13 @@ mod chip8
         {
             println!("Hello 00e0");
         }
+        /// # 1nnn: Jump to location nnn
+        /// This instruction jumps (sets PC) to the specified location (nnn)
         pub fn op_1nnn(&mut self)
         {
             println!("Hello 1nnn");
+            let addr = self.opcode & 0x0FFF;
+            self.pc = addr;
         }
         pub fn op_6xnn(&mut self)
         {
@@ -229,6 +235,12 @@ impl Default for CanvasData
 /// then the last byte is used for n.\
 /// n is the height, its so we can basically chop up the sprite.
 /// this is an extremely BARE skeleton
+// TODO: p_v is implemented in CanvasData, but pixel vec
+// is something thats part of the cpu?
+// so I need to decide if I should implement it on the CPU struct
+// or on canvas data
+// I am aware (now) that the CPU struct implements an array
+// thats the same but thats for the 64 * 32 canvas
 pub fn draww(
     surfctx: &Canvas<Window>,
     x: u16, // x position
