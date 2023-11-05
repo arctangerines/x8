@@ -192,25 +192,30 @@ mod chip8
 /// Struct containing the various relevant canvas data
 /// Just a PoD (but not really because we got constructors and methods)
 /// to pass around to functions in an easy manner :D
-struct CanvasData
+pub struct CanvasData
 {
     width: u32,
     height: u32,
+    /// True Width
+    twidth: u32,
+    /// True Height
+    theight: u32,
     scalefactor: u8,
     pixelvec: Vec<u8>,
 }
 impl CanvasData
 {
     /// Construct a new Canvas Data
-    pub fn new(
-        sf: u8,
-    ) -> CanvasData
+    pub fn new(sf: u8) -> CanvasData
     {
         CanvasData {
             width: (64 * sf) as u32,
             height: (32 * sf) as u32,
+            twidth: 64,
+            theight: 32,
             scalefactor: sf,
-            pixelvec: vec![0; (w * h) as usize],
+            // FIXME: Too verbose.
+            pixelvec: vec![0; ((64 * sf) * (32 * sf)) as usize],
         }
     }
 }
