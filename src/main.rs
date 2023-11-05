@@ -203,14 +203,12 @@ impl CanvasData
 {
     /// Construct a new Canvas Data
     pub fn new(
-        w: u32,
-        h: u32,
         sf: u8,
     ) -> CanvasData
     {
         CanvasData {
-            width: w,
-            height: h,
+            width: (64 * sf) as u32,
+            height: (32 * sf) as u32,
             scalefactor: sf,
             pixelvec: vec![0; (w * h) as usize],
         }
