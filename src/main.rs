@@ -396,6 +396,11 @@ pub fn draww(
             // 5 + 2 = 7
             // 7 is our position if we were to put all the pixels in 1 line
             // knowing this, we can XOR it QUICK :)
+            // However, this is just the starting point, we need to take into consideration
+            // the formula idx = (width * y) + x
+            // doesnt need alteration because we do the addition of the y_point
+            // and the subtraction (or addition depending on implementation look at op_dxyn) of x_point
+            // in their respective loops
 
             // index: look at the long ass comment above
             // TODO: i need to take into consideration the scale factor
