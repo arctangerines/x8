@@ -34,6 +34,10 @@ mod chip8
 {
     pub mod CPU
     {
+        // REVIEW: I have not decided if I should use imports
+        // or I should inline them
+        use sdl2::{render::Canvas, video::Window, rect::Point};
+
         /// TODO: Finish the struct thats representing the layout of the cpu
         /// NOTE: its kinda done?
         pub struct Chip8
@@ -230,10 +234,92 @@ mod chip8
                 let addr = self.opcode & 0x0FFF;
                 self.index = addr;
             }
-            ///TODO...
-            pub fn op_dxyn(&mut self)
+            /// dxyn: DRW Vx, Vy, nibble
+            /// display n-byte(?) sprite that starts at location I
+            /// at the X (Vx), Y (Vy)
+            /// if collision (pixel XOR) VF = 1;
+            /// The sprites are supposed to wrap around
+            pub fn op_dxyn(
+                &mut self,
+                surf: &mut Canvas<Window>,
+            )
             {
-                println!("Hello dxyn");
+                let vx = ((self.opcode & 0x0F00) >> 8) as usize;
+                let vy = ((self.opcode & 0x00F0) >> 4) as usize;
+                let height = (self.opcode & 0x000F) as u32;
+                let vf = 0xF as usize;
+
+                // Obtain the x coordinate and this modulo operation wraps it around if its above the width
+                // REVIEW: Will this wrap for the subsequent pixels and not the starting point?
+                // perhaps it needs to be done on the loop?!?!?
+                let x_point =
+                    (self.registers[vx] % super::display::C8_WIDTH) as u32;
+                let y_point =
+                    (self.registers[vy] % super::display::C8_HEIGHT) as u32;
+
+                // The mask, as opposed to my initial implementation, starts from left to right
+                // no need to subtract, only add!
+                let mask = 0b1000_0000;
+
+                for row in 0..height
+                {
+                    // separate number because it looks disgusting inside the brackets
+                    let idx = (self.index + (row as u16)) as usize;
+                    // obtain the next byte of the sprite to display so we can & it later
+                    let sprite = self.memory[idx];
+
+                    //XXX: Its 8, period. Thats the size of each sprite, cant get it dynamically. For now...
+                    for column in 0..8
+                    {
+                        // This is the index of the pixel array/vector
+                        // this uses the formula
+                        // (width * (y + row) + (x + column))
+                        // previous iteration of this did it like this
+                        // (width * y) + x
+                        // and we did x += 1 in the inner loop (column loop)
+                        // and y += 1 in the outer loop (row loop)
+                        // this does it in 1 line, more elegant and clean, same formula
+                        // this formula basically tells us where the pixel would be
+                        // if we were to place it in a 1 dimensional array
+                        let px_idx = ((self.video.width * (y_point + row))
+                            + (x_point + column))
+                            as usize;
+
+                        // extract the bit inside of the pixel array
+                        // FIXME: RENAME THIS VAR
+                        let live_bit = self.video.pixels[px_idx];
+                        // Just checking if theres a value inside, nothing weird :)
+                        if live_bit == 1
+                        {
+                            // set flag register to collision...
+                            self.registers[vf] = 0x1;
+                            // and xor the pixel!
+                            self.video.pixels[px_idx] ^= 0x1;
+                        }
+                        // we move the mask by the amount of times we've looped
+                        // if column = 2
+                        // mask goes from
+                        // 0b1000_0000;
+                        // to
+                        // 0b0010_0000;
+                        // then we & it with the sprite byte
+                        // we just wanna know if theres something,
+                        // we dont care where it at
+                        // REVIEW: should this be renamed? it is the drawing bit after all
+                        let drwbit = (mask >> column) & sprite;
+                        // if theres something we draw!
+                        if drwbit != 0
+                        {
+                            surf.draw_point(Point::new(
+                                (x_point + column) as i32,
+                                (y_point + row) as i32,
+                            ))
+                            .expect("Unable to draw a point.");
+                        }
+                        // reset it
+                        self.registers[vf] = 0x0;
+                    }
+                }
             }
         }
     }
