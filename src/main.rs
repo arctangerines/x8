@@ -190,7 +190,6 @@ mod chip8
             // - DXYN (display function / draww)
             // The reason for wanting to implement these first is that
             // we can use the IBM test rom :)
-            // TODO: perhaps I should change nn -> kk since a lot of docs use kk
             pub fn op_00e0(&mut self)
             {
                 println!("Hello 00e0");
