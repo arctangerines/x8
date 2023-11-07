@@ -116,7 +116,7 @@ mod chip8
                     registers: [0x0; 16],
                     memory: [0x0; 4096],
                     display: [0x0; 64 * 32],
-                    video: super::display::VData::new(24), /* REVIEW: Should this new take in the scale factor as a parameter? */
+                    video: super::display::VData::new(1), /* REVIEW: Should this new take in the scale factor as a parameter? */
                     pc: MemLocations::Rom as u16,
                     index: 0x0,
                     stack: [0x0; 16],
@@ -240,8 +240,8 @@ mod chip8
 
     pub mod display
     {
-        const C8_WIDTH: u8 = 64;
-        const C8_HEIGHT: u8 = 32;
+        pub const C8_WIDTH: u8 = 64;
+        pub const C8_HEIGHT: u8 = 32;
 
         /// ## VData
         /// Struct containing the various relevant canvas data
@@ -301,7 +301,7 @@ fn main() -> Result<(), String>
     // video context
     let video_ctx = sld_ctx.video()?;
 
-    let mut video_data = chip8::display::VData::new(24);
+    let mut video_data = chip8::display::VData::new(1);
 
     let window = video_ctx
         .window("lmfao", video_data.width, video_data.height)
