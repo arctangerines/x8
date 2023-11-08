@@ -181,18 +181,14 @@ mod chip8
                 );
             }
 
-            // TODO: Implement these 6 instruction AND reading the instructions from rom
-            // - 00E0 (clear screen)
-            // - 1NNN (jump)
-            // - 6XNN (set register VX)
-            // - 7XNN (add to register VX)
-            // - ANNN (set index register I)
-            // - DXYN (display function / draww)
-            // The reason for wanting to implement these first is that
-            // we can use the IBM test rom :)
-            pub fn op_00e0(&mut self)
+            /// # 00e0: Clear the display
+            pub fn op_00e0(
+                &mut self,
+                surf: &mut Canvas<Window>,
+            )
             {
-                println!("Hello 00e0");
+                self.video.pixels.fill(0);
+                surf.clear();
             }
             /// # 1nnn: Jump to location nnn
             /// This instruction jumps (sets PC) to the specified location (nnn)
