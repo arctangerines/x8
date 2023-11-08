@@ -26,7 +26,7 @@ mod chip8
             pub registers: [u8; 16],
             /// 4096 bytes of memory
             pub memory: [u8; 4096],
-            /// Display information 
+            /// Display information
             pub display: super::display::VData,
             /// The program counter holds the currently executing address (glorified index for an arrays)
             pub pc: u16,
@@ -397,11 +397,11 @@ fn main() -> Result<(), String>
         }
         // TODO: Implement the decodification (?) of the instructions
         // so we can start using the correct instructions
+        // Lets use a 4 element array for this, we should pattern match it :)
         surface_ctx.present();
         // im testing other stuff rn
         break;
     }
-
     c8.open("./rom/IBM Logo.ch8");
     c8.cycle();
 
