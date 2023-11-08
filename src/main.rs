@@ -1,7 +1,6 @@
 extern crate sdl2;
 
 /// LIST OF URGENT THINGS
-/// TODO: Figure out how a function pointer table works in Rust
 use sdl2::event::Event;
 use sdl2::keyboard::Keycode;
 use sdl2::pixels::Color;
@@ -32,24 +31,21 @@ const FAKESET: [u8; 80] = [
 #[allow(dead_code, unused_imports)]
 mod chip8
 {
+    // REVIEW: Should I remove this mod (probably not)
     pub mod CPU
     {
         // REVIEW: I have not decided if I should use imports
         // or I should inline them
         use sdl2::{render::Canvas, video::Window, rect::Point};
 
-        /// TODO: Finish the struct thats representing the layout of the cpu
-        /// NOTE: its kinda done?
-        pub struct Chip8
+        pub struct CPU
         {
             /// 16 registers that are 8 bit wide
             pub registers: [u8; 16],
             /// 4096 bytes of memory
             pub memory: [u8; 4096],
-            /// The display is 64 x 32
-            pub display: [u8; 64 * 32],
-            /// Initial implementation of canvasdata
-            pub video: super::display::VData,
+            /// Display information 
+            pub display: super::display::VData,
             /// The program counter holds the currently executing address (glorified index for an arrays)
             pub pc: u16,
             /// The index is a special register that stores addresses
@@ -85,8 +81,6 @@ mod chip8
             /// End of the Rom
             RomEnd = 0xFFF,
         }
-        // XXX: a way to pair the sprite with the sprite data, like the size of each char (bits)
-        // this would allow for a sort of "dynamic" sprite system
         const FONTSET_SIZE: usize = 80;
         const FONTSET: [u8; FONTSET_SIZE] = [
             0xF0, 0x90, 0x90, 0x90, 0xF0, // 0
@@ -106,21 +100,20 @@ mod chip8
             0xF0, 0x80, 0xF0, 0x80, 0xF0, // E
             0xF0, 0x80, 0xF0, 0x80, 0x80, // F
         ];
-        impl Default for Chip8
+        impl Default for CPU
         {
-            fn default() -> Self { Chip8::new() }
+            fn default() -> Self { CPU::new() }
         }
 
-        impl Chip8
+        impl CPU
         {
             /// Constructor :)
             pub fn new() -> Self
             {
-                let mut c8 = Chip8 {
+                let mut c8 = CPU {
                     registers: [0x0; 16],
                     memory: [0x0; 4096],
-                    display: [0x0; 64 * 32],
-                    video: super::display::VData::new(1), /* REVIEW: Should this new take in the scale factor as a parameter? */
+                    display: super::display::VData::new(1), /* REVIEW: Should this new take in the scale factor as a parameter? */
                     pc: MemLocations::Rom as u16,
                     index: 0x0,
                     stack: [0x0; 16],
@@ -152,8 +145,7 @@ mod chip8
                 println!("{:x?}", self.memory);
             }
 
-            // TODO: Implement the cycle function
-            // - Cycle -> a cycle of the cpu lolz
+            /// # Cycle -> a cycle of the cpu lolz
             pub fn cycle(&mut self)
             {
                 println!(
@@ -187,7 +179,7 @@ mod chip8
                 surf: &mut Canvas<Window>,
             )
             {
-                self.video.pixels.fill(0);
+                self.display.pixels.fill(0);
                 surf.clear();
             }
             /// # 1nnn: Jump to location nnn
@@ -233,7 +225,8 @@ mod chip8
             /// display n-byte(?) sprite that starts at location I
             /// at the X (Vx), Y (Vy)
             /// if collision (pixel XOR) VF = 1;
-            /// The sprites are supposed to wrap around
+            /// The sprites are supposed to wrap around \
+            /// The n-byte simply tells us how many sprites its gonna grab.
             pub fn op_dxyn(
                 &mut self,
                 surf: &mut Canvas<Window>,
@@ -247,6 +240,7 @@ mod chip8
                 // Obtain the x coordinate and this modulo operation wraps it around if its above the width
                 // REVIEW: Will this wrap for the subsequent pixels and not the starting point?
                 // perhaps it needs to be done on the loop?!?!?
+                // Potential solution: modulo to the points before doing the draw_point
                 let x_point =
                     (self.registers[vx] % super::display::C8_WIDTH) as u32;
                 let y_point =
@@ -263,7 +257,7 @@ mod chip8
                     // obtain the next byte of the sprite to display so we can & it later
                     let sprite = self.memory[idx];
 
-                    //XXX: Its 8, period. Thats the size of each sprite, cant get it dynamically. For now...
+                    // Its 8, period. Thats the size of each sprite, cant get it dynamically. For now...
                     for column in 0..8
                     {
                         // This is the index of the pixel array/vector
@@ -276,20 +270,19 @@ mod chip8
                         // this does it in 1 line, more elegant and clean, same formula
                         // this formula basically tells us where the pixel would be
                         // if we were to place it in a 1 dimensional array
-                        let px_idx = ((self.video.width * (y_point + row))
+                        let px_idx = ((self.display.width * (y_point + row))
                             + (x_point + column))
                             as usize;
 
-                        // extract the bit inside of the pixel array
-                        // FIXME: RENAME THIS VAR
-                        let live_bit = self.video.pixels[px_idx];
+                        // extract the current pixel bit inside of the pixel array
+                        let pixel_bit = self.display.pixels[px_idx];
                         // Just checking if theres a value inside, nothing weird :)
-                        if live_bit == 1
+                        if pixel_bit == 1
                         {
                             // set flag register to collision...
                             self.registers[vf] = 0x1;
                             // and xor the pixel!
-                            self.video.pixels[px_idx] ^= 0x1;
+                            self.display.pixels[px_idx] ^= 0x1;
                         }
                         // we move the mask by the amount of times we've looped
                         // if column = 2
@@ -300,10 +293,9 @@ mod chip8
                         // then we & it with the sprite byte
                         // we just wanna know if theres something,
                         // we dont care where it at
-                        // REVIEW: should this be renamed? it is the drawing bit after all
-                        let drwbit = (mask >> column) & sprite;
+                        let draw_bit = (mask >> column) & sprite;
                         // if theres something we draw!
-                        if drwbit != 0
+                        if draw_bit != 0
                         {
                             surf.draw_point(Point::new(
                                 (x_point + column) as i32,
@@ -364,7 +356,6 @@ mod chip8
                     width: 64 * sf,
                     height: 32 * sf,
                     scale_factor: sf,
-                    // FIXME: Too verbose.
                     pixelvec: vec![0; ((64 * sf) * (32 * sf)) as usize],
                     pixels: [0; 64 * 32],
                 }
@@ -375,7 +366,7 @@ mod chip8
 
 fn main() -> Result<(), String>
 {
-    let mut c8 = chip8::CPU::Chip8::new();
+    let mut c8 = chip8::CPU::CPU::new();
 
     // sdl context
     let sld_ctx = sdl2::init()?;
@@ -422,6 +413,8 @@ fn main() -> Result<(), String>
                 .draw_point(Point::new(i as i32, i as i32))
                 .expect("Unable to draw a point.");
         }
+        // TODO: Implement the decodification (?) of the instructions
+        // so we can start using the correct instructions
         surface_ctx.present();
         // im testing other stuff rn
         break;
