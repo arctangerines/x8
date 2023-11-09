@@ -18,7 +18,7 @@ mod chip8
     {
         // REVIEW: I have not decided if I should use imports
         // or I should inline them
-        use sdl2::{render::Canvas, video::Window, rect::Point};
+        use sdl2::{render::Canvas, video::Window, rect::Point, pixels::Color};
 
         pub struct CPU
         {
@@ -376,6 +376,9 @@ fn main() -> Result<(), String>
         window.into_canvas().build().map_err(|e| e.to_string())?;
     let mut event_pump = sld_ctx.event_pump()?;
 
+    c8.open("./rom/IBM Logo.ch8");
+    surface_ctx.set_draw_color(Color::RGB(0, 0, 0));
+
     'running: loop
     {
         for event in event_pump.poll_iter()
@@ -396,24 +399,26 @@ fn main() -> Result<(), String>
             }
         }
 
-        surface_ctx.set_draw_color(Color::RGB(0, 0, 0));
-        surface_ctx.clear();
-        surface_ctx.set_draw_color(Color::RGB(255, 0, 255));
-        for i in 0..video_data.width
-        {
-            surface_ctx
-                .draw_point(Point::new(i as i32, i as i32))
-                .expect("Unable to draw a point.");
-        }
         // TODO: Implement the decodification (?) of the instructions
         // so we can start using the correct instructions
         // Lets use a 4 element array for this, we should pattern match it :)
-        surface_ctx.present();
-        // im testing other stuff rn
-        break;
+        let quartets = [
+            ((c8.opcode & 0xF000) >> 12) as u8,
+            ((c8.opcode & 0x0F00) >> 8) as u8,
+            ((c8.opcode & 0x00F0) >> 4) as u8,
+            (c8.opcode & 0x000F) as u8,
+        ];
+        match quartets
+        {
+            [0x0, 0x0, 0xe, 0x0] => c8.op_00e0(&mut surface_ctx),
+            [0x1, ..] => c8.op_1nnn(),
+            [0x6, ..] => c8.op_6xnn(),
+            [0x7, ..] => c8.op_7xnn(),
+            [0xa, ..] => c8.op_annn(),
+            [0xd, ..] => c8.op_dxyn(&mut surface_ctx),
+            _ => c8.cycle(),
+        }
     }
-    c8.open("./rom/IBM Logo.ch8");
-    c8.cycle();
 
     Ok(())
 }
