@@ -276,19 +276,36 @@ mod chip8
                         // we just wanna know if theres something,
                         // we dont care where it at
                         let draw_bit = (mask >> column) & sprite;
-                        // if theres something we draw!
+                        // if theres something we saveit into its position!
                         if draw_bit != 0
                         {
-                            surf.draw_point(Point::new(
-                                (x_point + column) as i32,
-                                (y_point + row) as i32,
-                            ))
-                            .expect("Unable to draw a point.");
+                            self.display.pixels[px_idx] = 1;
                         }
                         // reset it
                         self.registers[vf] = 0x0;
                     }
                 }
+                for (i, v) in self.display.pixels.iter().enumerate()
+                {
+                    if *v != 0
+                    {
+                        // X pixel point, the x coordinate of the current pixel point
+                        let x_px_point =
+                            i % (super::display::C8_WIDTH as usize);
+                        // Y pixel point, the x coordinate of the current pixel point
+                        let y_px_point: f32 = (i as f32
+                            / (super::display::C8_WIDTH as f32))
+                            .floor();
+                        surf.set_draw_color(Color::RGB(255, 0, 255));
+                        surf.draw_point(Point::new(
+                            x_px_point as i32,
+                            y_px_point as i32,
+                        ))
+                        .expect("Unable to draw a point.");
+                    }
+                }
+                surf.present();
+                self.cycle();
             }
         }
     }
