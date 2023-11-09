@@ -130,10 +130,6 @@ mod chip8
             /// # Cycle -> a cycle of the cpu lolz
             pub fn cycle(&mut self)
             {
-                println!(
-                    "Starting: {:#06x}, PC is at: {:#06x}",
-                    self.memory[self.pc as usize], self.pc
-                );
                 // We need to get the first 8 bits then the last 8
                 // 4096 bytes :)
                 // instructions are 16 bits
@@ -144,15 +140,10 @@ mod chip8
                 // op = [a 2 2 a]
                 self.opcode = ((self.memory[self.pc as usize] as u16) << 8)
                     | (self.memory[(self.pc + 1) as usize] as u16);
-                println!("op: {:#06x}", self.opcode);
 
                 // Add 2 because the 16 bit instructions are handled in sets of 8 bit
                 // and memory is an array of 8 bit values
                 self.pc += 2;
-                println!(
-                    "Ending: {:#06x}, PC is at: {:#06x}",
-                    self.memory[self.pc as usize], self.pc
-                );
             }
 
             /// # 00e0: Clear the display
@@ -162,46 +153,48 @@ mod chip8
             )
             {
                 self.display.pixels.fill(0);
+                surf.set_draw_color(Color::RGB(0, 0, 0));
                 surf.clear();
+                self.cycle();
             }
             /// # 1nnn: Jump to location nnn
             /// This instruction jumps (sets PC) to the specified location (nnn)
             pub fn op_1nnn(&mut self)
             {
-                println!("Hello 1nnn");
                 let addr = self.opcode & 0x0FFF;
                 self.pc = addr;
+                self.cycle();
             }
             /// # 6xnn: Vx = nn
             /// This instruction sets Vx = nn
             pub fn op_6xnn(&mut self)
             {
-                println!("Hello 6xnn");
                 let vx = ((self.opcode & 0x0F00) >> 8) as usize;
                 let byte = (self.opcode & 0x00FF) as u8;
-                self.memory[vx] = byte;
+                self.registers[vx] = byte;
+                self.cycle();
             }
             /// # 7xnn: Vx = Vx + nn
             /// Sets Vx = Vx + nn
             /// Adds the value in Vx to nn then sets Vx to result
             pub fn op_7xnn(&mut self)
             {
-                println!("Hello 7xnnn");
                 // Better cast here than in every operation
                 // (Rust requires array indexes to be usize)
                 let vx = ((self.opcode & 0x0F00) >> 8) as usize;
                 // (And this particular array stores u8 values)
                 let byte = (self.opcode & 0x00FF) as u8;
-                self.memory[vx] = self.memory[vx] + byte;
+                self.registers[vx] = self.registers[vx] + byte;
+                self.cycle();
             }
             /// # annn: LD I, addr
             /// Sets I = nnn
             /// Sets the Index register to the 12 bit address
             pub fn op_annn(&mut self)
             {
-                println!("Hello annn");
                 let addr = self.opcode & 0x0FFF;
                 self.index = addr;
+                self.cycle();
             }
             /// dxyn: DRW Vx, Vy, nibble
             /// display n-byte(?) sprite that starts at location I
