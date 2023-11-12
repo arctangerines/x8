@@ -138,14 +138,17 @@ mod chip8
                 //  pc      pc+1
                 // [a 2] | [2 a]
                 // op = [a 2 2 a]
-                self.opcode = ((self.memory[self.pc as usize] as u16) << 8)
-                    | (self.memory[(self.pc + 1) as usize] as u16);
+                self.opcode = ((self.memory[self.pc] as u16) << 8)
+                    | (self.memory[self.pc + 1] as u16);
 
                 // Add 2 because the 16 bit instructions are handled in sets of 8 bit
                 // and memory is an array of 8 bit values
                 self.pc += 2;
             }
 
+            pub fn op_0nnn(&mut self)
+            {
+            }
             /// # 00e0: Clear the display
             pub fn op_00e0(
                 &mut self,
@@ -157,12 +160,34 @@ mod chip8
                 surf.clear();
                 self.cycle();
             }
+            /// # 00ee: RET
+            /// Return from a subroutine.\
+            /// Sets the PC to the top of the stack and subtracts 1 from the SP
+            pub fn op_00ee(&mut self)
+            {
+                self.pc = self.stack[self.sp] as usize;
+                self.sp -= 1;
+                self.cycle();
+            }
             /// # 1nnn: Jump to location nnn
             /// This instruction jumps (sets PC) to the specified location (nnn)
             pub fn op_1nnn(&mut self)
             {
-                let addr = self.opcode & 0x0FFF;
+                let addr = (self.opcode & 0x0FFF) as usize;
                 self.pc = addr;
+                self.cycle();
+            }
+            /// # 2nnn: CALL addr
+            /// Call subroutine at nnn.\
+            /// We increment the stack pointer
+            /// save PC value at the top of the stack
+            /// and PC is set to nnn.
+            pub fn op_2nnn(&mut self)
+            {
+                let byte = self.opcode & 0x0FFF;
+                self.sp += 1;
+                self.stack[self.sp] = self.pc;
+                self.pc = byte as usize;
                 self.cycle();
             }
             /// # 6xnn: Vx = nn
@@ -177,6 +202,14 @@ mod chip8
             /// # 7xnn: Vx = Vx + nn
             /// Sets Vx = Vx + nn
             /// Adds the value in Vx to nn then sets Vx to result
+            /// This should be an addition with wrapping as the specification states
+            /// That means that if we were add 1 to 255
+            /// 0x01 + 0xFF
+            /// we would preserve the lower 8 bits
+            /// 0x0100 & 0x00FF
+            /// 0x00
+            /// (the bit behaviour is what the spec states)
+            /// This is a wrapped addition!
             pub fn op_7xnn(&mut self)
             {
                 // Better cast here than in every operation
@@ -184,7 +217,8 @@ mod chip8
                 let vx = ((self.opcode & 0x0F00) >> 8) as usize;
                 // (And this particular array stores u8 values)
                 let byte = (self.opcode & 0x00FF) as u8;
-                self.registers[vx] = self.registers[vx] + byte;
+                self.registers[vx] = self.registers[vx].wrapping_add(byte);
+
                 self.cycle();
             }
             /// # annn: LD I, addr
@@ -411,9 +445,11 @@ fn main() -> Result<(), String>
         match quartets
         {
             [0x0, 0x0, 0xe, 0x0] => c8.op_00e0(&mut surface_ctx),
+            [0x0, 0x0, 0xe, 0xe] => c8.op_00ee(),
             [0x1, ..] => c8.op_1nnn(),
+            [0x2, ..] => c8.op_2nnn(),
             [0x6, ..] => c8.op_6xnn(),
-            [0x7, ..] => c8.op_7xnn(),
+            // [0x7, ..] => c8.op_7xnn(),
             [0xa, ..] => c8.op_annn(),
             [0xd, ..] => c8.op_dxyn(&mut surface_ctx),
             _ => c8.cycle(),
