@@ -26,24 +26,28 @@ mod chip8
             pub registers: [u8; 16],
             /// 4096 bytes of memory
             pub memory: [u8; 4096],
-            /// Display information
-            pub display: super::display::VData,
-            /// The program counter holds the currently executing address (glorified index for an arrays)
-            pub pc: u16,
-            /// The index is a special register that stores addresses
-            pub index: u16,
+            /// The program counter holds the currently executing address (glorified index for an array)
+            pub pc: usize,
             /// A CPU stack of 16 values,
             /// moves downwards lolz.\
             /// hey you know fun fact:\
             /// since this is an emulator the stack can be as long as we want it to
-            /// as long as its 16 values in the stack (array)
-            pub stack: [u16; 16],
+            /// as long as its 16 values in the stack (array)\
+            /// We use usize values because PC is values
+            /// and array/vec indexes in rust have to be usize
+            pub stack: [usize; 16],
+            /// Stack pointer
+            pub sp: usize,
+            /// The index is a special register that stores addresses
+            pub index: u16,
+            /// 16 bit opcode
+            pub opcode: u16,
+            /// Display information
+            pub display: super::display::VData,
             /// A timer that will delay haha
             pub delay_timer: u8,
             /// A timer that will sound haha
             pub sound_timer: u8,
-            /// 16 bit opcode
-            pub opcode: u16,
         }
 
         /// # MemLocations
@@ -95,13 +99,14 @@ mod chip8
                 let mut c8 = CPU {
                     registers: [0x0; 16],
                     memory: [0x0; 4096],
-                    display: super::display::VData::new(1), /* REVIEW: Should this new take in the scale factor as a parameter? */
-                    pc: MemLocations::Rom as u16,
-                    index: 0x0,
+                    pc: MemLocations::Rom as usize,
                     stack: [0x0; 16],
+                    sp: 0x0,
+                    index: 0x0,
+                    opcode: 0x0,
+                    display: super::display::VData::new(1), /* REVIEW: Should this new take in the scale factor as a parameter? */
                     delay_timer: 0x0,
                     sound_timer: 0x0,
-                    opcode: 0x0,
                 };
                 for i in 0..FONTSET_SIZE
                 {
