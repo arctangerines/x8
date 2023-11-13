@@ -35,7 +35,8 @@ mod chip8
             /// as long as its 16 values in the stack (array)\
             /// We use usize values because PC is values
             /// and array/vec indexes in rust have to be usize
-            pub stack: [usize; 16],
+            /// We are using a vector now so we can push and pop :]
+            pub stack: Vec<usize>,
             /// Stack pointer
             pub sp: usize,
             /// The index is a special register that stores addresses
@@ -100,7 +101,7 @@ mod chip8
                     registers: [0x0; 16],
                     memory: [0x0; 4096],
                     pc: MemLocations::Rom as usize,
-                    stack: [0x0; 16],
+                    stack: Vec::with_capacity(16),
                     sp: 0x0,
                     index: 0x0,
                     opcode: 0x0,
@@ -170,8 +171,11 @@ mod chip8
             /// Sets the PC to the top of the stack and subtracts 1 from the SP
             pub fn op_00ee(&mut self)
             {
-                self.pc = self.stack[self.sp] as usize;
-                self.sp -= 1;
+                self.pc = *self
+                    .stack
+                    .last()
+                    .expect("Couldn't obtain the last member of stack.");
+                self.stack.pop();
                 self.cycle();
             }
             /// # 1nnn: Jump to location nnn
@@ -190,8 +194,7 @@ mod chip8
             pub fn op_2nnn(&mut self)
             {
                 let byte = self.opcode & 0x0FFF;
-                self.sp += 1;
-                self.stack[self.sp] = self.pc;
+                self.stack.push(self.pc);
                 self.pc = byte as usize;
                 self.cycle();
             }
