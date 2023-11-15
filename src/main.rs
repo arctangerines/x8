@@ -198,6 +198,42 @@ mod chip8
                 self.pc = byte as usize;
                 self.cycle();
             }
+            /// # 3xkk: SE Vx, byte
+            /// Skip next instruction if Vx == kk
+            pub fn op_3xkk(&mut self)
+            {
+                let vx = ((self.opcode & 0x0F00) >> 8) as usize;
+                let byte = (self.opcode & 0x00FF) as u8;
+                if self.registers[vx] == byte
+                {
+                    self.pc += 2;
+                }
+                self.cycle();
+            }
+            /// # 4xkk: SNE Vx, byte
+            /// Skip next instruction if Vx != kk
+            pub fn op_4xkk(&mut self)
+            {
+                let vx = ((self.opcode & 0x0F00) >> 8) as usize;
+                let byte = (self.opcode & 0x00FF) as u8;
+                if self.registers[vx] != byte
+                {
+                    self.pc += 2;
+                }
+                self.cycle();
+            }
+            /// # 5xy0: SE Vx, Vy
+            /// Skip next instruction if Vx == Vy
+            pub fn op_5xy0(&mut self)
+            {
+                let vx = ((self.opcode & 0x0F00) >> 8) as usize;
+                let vy = ((self.opcode & 0x00F0) >> 4) as usize;
+                if self.registers[vx] == self.registers[vy]
+                {
+                    self.pc += 2;
+                }
+                self.cycle();
+            }
             /// # 6xnn: Vx = nn
             /// This instruction sets Vx = nn
             pub fn op_6xnn(&mut self)
@@ -228,6 +264,98 @@ mod chip8
                 self.registers[vx] = self.registers[vx].wrapping_add(byte);
 
                 self.cycle();
+            }
+            /// # 8xy0: LD Vx, Vy
+            /// Sets Vx = Vy
+            pub fn op_8xy0(&mut self)
+            {
+                let vx = ((self.opcode & 0x0F00) >> 8) as usize;
+                let vy = ((self.opcode & 0x00F0) >> 4) as usize;
+
+                self.registers[vx] = self.registers[vy];
+
+                self.cycle();
+            }
+            /// # 8xy1: OR Vx, Vy
+            /// Sets Vx = Vx | Vy
+            pub fn op_8xy1(&mut self)
+            {
+                let vx = ((self.opcode & 0x0F00) >> 8) as usize;
+                let vy = ((self.opcode & 0x00F0) >> 4) as usize;
+
+                self.registers[vx] |= self.registers[vy];
+
+                self.cycle();
+            }
+            /// # 8xy2: AND Vx, Vy
+            /// Sets Vx = Vx & Vy
+            pub fn op_8xy2(&mut self)
+            {
+                let vx = ((self.opcode & 0x0F00) >> 8) as usize;
+                let vy = ((self.opcode & 0x00F0) >> 4) as usize;
+
+                self.registers[vx] &= self.registers[vy];
+
+                self.cycle();
+            }
+            /// # 8xy3: XOR Vx, Vy
+            /// Sets Vx = Vx ^ Vy
+            pub fn op_8xy3(&mut self)
+            {
+                let vx = ((self.opcode & 0x0F00) >> 8) as usize;
+                let vy = ((self.opcode & 0x00F0) >> 4) as usize;
+
+                self.registers[vx] ^= self.registers[vy];
+
+                self.cycle();
+            }
+            /// # 8xy4: ADD Vx, Vy
+            /// Sets Vx += Vy
+            /// If the result is more than 8 bits, VF is set to 1
+            pub fn op_8xy4(&mut self)
+            {
+                let vx = ((self.opcode & 0x0F00) >> 8) as usize;
+                let vy = ((self.opcode & 0x00F0) >> 4) as usize;
+                let vf = 0xF;
+
+                // rust doesnt intend to implicitly typecast, not even when it makes sense
+                // they evil but i get it
+                let sum =
+                    (self.registers[vx] as u16) + (self.registers[vy] as u16);
+
+                if sum > 255
+                {
+                    self.registers[vf] = 0x1;
+                }
+                else
+                {
+                    self.registers[vf] = 0x0;
+                }
+                self.registers[vx] = (sum & 0x00FF) as u8;
+
+                self.cycle();
+            }
+            /// # 8xy5: SUB Vx, Vy
+            /// Sets Vx = Vx - Vy
+            /// If borrow (Vy > Vx), VF = 0
+            pub fn op_8xy5(&mut self)
+            {
+            }
+            /// # 8xy6: SHR Vx {, Vy} [Should i also shift vy? lol]
+            /// Shift Vx to the right 1 bit and store bit 0 (LS) in VF
+            pub fn op_8xy6(&mut self)
+            {
+            }
+            /// # 8xy7: SUBN Vx, Vy
+            /// Sets Vx = Vy - Vx
+            /// If borrow (Vx > Vy), VF = 0
+            pub fn op_8xy7(&mut self)
+            {
+            }
+            /// # 8xy6: SHL Vx {, Vy} [Should i also shift vy? lol]
+            /// Shift Vx to the left 1 bit and store bit 15 (MS) in VF
+            pub fn op_8xye(&mut self)
+            {
             }
             /// # annn: LD I, addr
             /// Sets I = nnn
@@ -418,7 +546,7 @@ fn main() -> Result<(), String>
         window.into_canvas().build().map_err(|e| e.to_string())?;
     let mut event_pump = sld_ctx.event_pump()?;
 
-    c8.open("./rom/IBM Logo.ch8");
+    c8.open("./rom/test3.ch8");
     surface_ctx.set_draw_color(Color::RGB(0, 0, 0));
 
     'running: loop
@@ -456,8 +584,16 @@ fn main() -> Result<(), String>
             [0x0, 0x0, 0xe, 0xe] => c8.op_00ee(),
             [0x1, ..] => c8.op_1nnn(),
             [0x2, ..] => c8.op_2nnn(),
+            [0x3, ..] => c8.op_3xkk(),
+            [0x4, ..] => c8.op_4xkk(),
+            [0x5, .., 0x0] => c8.op_5xy0(),
             [0x6, ..] => c8.op_6xnn(),
-            // [0x7, ..] => c8.op_7xnn(),
+            [0x7, ..] => c8.op_7xnn(),
+            [0x8, .., 0x0] => c8.op_8xy0(),
+            [0x8, .., 0x1] => c8.op_8xy1(),
+            [0x8, .., 0x2] => c8.op_8xy2(),
+            [0x8, .., 0x3] => c8.op_8xy3(),
+            [0x8, .., 0x4] => c8.op_8xy4(),
             [0xa, ..] => c8.op_annn(),
             [0xd, ..] => c8.op_dxyn(&mut surface_ctx),
             _ => c8.cycle(),
